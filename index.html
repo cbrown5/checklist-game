@@ -772,9 +772,15 @@ function onCheck(cb, iIdx, pIdx) {
   saveState();
 
   if (cb.checked) {
+    const personDone = CONFIG.items.every((_, i) => {
+      const c = document.getElementById(`cb-${i}-${pIdx}`);
+      return c && c.checked;
+    });
+    if (personDone) setTimeout(() => celebratePerson(pIdx), 400);
+
     const total   = CONFIG.items.length * CONFIG.people.length;
     const checked = document.querySelectorAll('input[type=checkbox]:checked').length;
-    if (checked === total) setTimeout(celebrateAll, 500);
+    if (checked === total) setTimeout(celebrateAll, 1800);
   }
 }
 
@@ -796,6 +802,42 @@ function updateRow(iIdx) {
   });
   const row = document.getElementById(`row-${iIdx}`);
   if (row) row.classList.toggle('row-complete', allDone);
+}
+
+function celebratePerson(pIdx) {
+  // Fireworks around that person's progress chip
+  const chip = document.getElementById(`chip-${pIdx}`);
+  if (chip) {
+    VISUALS.fireworks(chip);
+    setTimeout(() => VISUALS.fireworks(chip), 300);
+    setTimeout(() => VISUALS.fireworks(chip), 600);
+  }
+
+  // Extra bursts scattered across the screen
+  for (let i = 0; i < 6; i++) {
+    setTimeout(() => {
+      const bx = Math.random() * window.innerWidth;
+      const by = Math.random() * window.innerHeight * 0.65;
+      const fakeEl = { getBoundingClientRect: () => ({ left: bx - 1, top: by - 1, width: 2, height: 2 }) };
+      VISUALS.fireworks(fakeEl);
+    }, i * 260);
+  }
+
+  // Victory sound
+  try {
+    const ac = getAC();
+    [[523,0],[659,0.11],[784,0.22],[1047,0.36],[1319,0.52]]
+      .forEach(([f, dt]) => {
+        const o = ac.createOscillator(), g = ac.createGain();
+        o.connect(g); g.connect(ac.destination);
+        o.type = 'square'; o.frequency.value = f;
+        const t = ac.currentTime + dt;
+        g.gain.setValueAtTime(0, t);
+        g.gain.linearRampToValueAtTime(0.1, t + 0.03);
+        g.gain.exponentialRampToValueAtTime(0.001, t + 0.3);
+        o.start(t); o.stop(t + 0.3);
+      });
+  } catch(e) {}
 }
 
 function celebrateAll() {
