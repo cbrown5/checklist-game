@@ -840,7 +840,94 @@ function celebratePerson(pIdx) {
   } catch(e) {}
 }
 
+function launchBouncingGuineaPigs() {
+  const COUNT    = 22;
+  const DURATION = 6000;
+  const pigs     = [];
+
+  for (let i = 0; i < COUNT; i++) {
+    const el = document.createElement('div');
+    el.textContent = '🐹';
+    const size = 1.8 + Math.random() * 1.6;
+    el.style.cssText = [
+      'position:fixed',
+      'pointer-events:none',
+      'z-index:9997',
+      'user-select:none',
+      `font-size:${size}rem`,
+      'will-change:transform,left,top',
+      'transition:opacity 0.6s',
+    ].join(';');
+    document.body.appendChild(el);
+
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3.5 + Math.random() * 4.5;
+    const pxSize = size * 16;
+    pigs.push({
+      el,
+      x:  Math.random() * (window.innerWidth  - pxSize),
+      y:  Math.random() * (window.innerHeight - pxSize),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      pxSize,
+      flipX: false,
+      squish: 1,
+      squishV: 0,
+    });
+  }
+
+  const start = performance.now();
+
+  function animatePigs(now) {
+    const elapsed   = now - start;
+    const remaining = DURATION - elapsed;
+
+    if (remaining <= 0) {
+      pigs.forEach(p => { p.el.style.opacity = '0'; });
+      setTimeout(() => pigs.forEach(p => p.el.remove()), 650);
+      return;
+    }
+
+    const opacity = remaining < 900 ? remaining / 900 : 1;
+
+    pigs.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+
+      // Gravity
+      p.vy += 0.12;
+
+      // Bounce off edges
+      const maxX = window.innerWidth  - p.pxSize;
+      const maxY = window.innerHeight - p.pxSize;
+
+      if (p.x < 0)    { p.x = 0;    p.vx =  Math.abs(p.vx); p.flipX = true;  p.squish = 0.6; }
+      if (p.x > maxX) { p.x = maxX; p.vx = -Math.abs(p.vx); p.flipX = false; p.squish = 0.6; }
+      if (p.y < 0)    { p.y = 0;    p.vy =  Math.abs(p.vy) * 0.9; p.squish = 1.5; }
+      if (p.y > maxY) { p.y = maxY; p.vy = -Math.abs(p.vy) * 0.88; p.squish = 0.55; }
+
+      // Ease squish back to 1
+      p.squish += (1 - p.squish) * 0.22;
+
+      const scaleX = (p.flipX ? -1 : 1) * (2 - p.squish);
+      const scaleY = p.squish;
+
+      p.el.style.left      = p.x + 'px';
+      p.el.style.top       = p.y + 'px';
+      p.el.style.opacity   = opacity;
+      p.el.style.transform = `scale(${scaleX}, ${scaleY})`;
+    });
+
+    requestAnimationFrame(animatePigs);
+  }
+
+  requestAnimationFrame(animatePigs);
+}
+
 function celebrateAll() {
+  // Bouncing guinea pigs!
+  launchBouncingGuineaPigs();
+
   // Multi-burst confetti across the screen
   for (let i = 0; i < 9; i++) {
     setTimeout(() => {
