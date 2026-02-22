@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>☀️ Morning Checklist Rocket</title>
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a1a;font-family:'Segoe UI',system-ui,sans-serif;overflow:hidden;height:100vh;width:100vw}
+#setup{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a2e,#1a1a4e,#0d0d2b);z-index:100}
+#setup h1{font-size:clamp(2rem,5vw,3.5rem);color:#fff;text-shadow:0 0 30px #6af,0 0 60px #48f;margin-bottom:.3em;letter-spacing:2px}
+#setup .sub{color:#8af;font-size:1.1rem;margin-bottom:2.5rem;opacity:.8}
+.card{background:rgba(255,255,255,.05);border:1px solid rgba(100,170,255,.3);border-radius:20px;padding:2.5rem 3rem;text-align:center;backdrop-filter:blur(10px);box-shadow:0 0 40px rgba(100,150,255,.15)}
+.card label{display:block;color:#adf;font-size:1.1rem;margin-bottom:1rem;letter-spacing:1px}
+.row{display:flex;align-items:center;gap:1rem;justify-content:center;margin-bottom:2rem}
+.cbtn{width:44px;height:44px;border-radius:50%;border:2px solid #6af;background:rgba(100,170,255,.1);color:#6af;font-size:1.5rem;cursor:pointer;transition:all .2s;display:flex;align-items:center;justify-content:center}
+.cbtn:hover{background:rgba(100,170,255,.3);transform:scale(1.1)}
+#ndisp{font-size:2.5rem;color:#fff;font-weight:bold;min-width:60px;text-align:center;text-shadow:0 0 20px #6af}
+#startbtn{background:linear-gradient(135deg,#4af,#26d);border:none;border-radius:50px;color:#fff;font-size:1.3rem;font-weight:bold;padding:.9rem 3rem;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 0 30px rgba(100,170,255,.4);transition:all .2s}
+#startbtn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(100,170,255,.6)}
+.sbg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+.st{position:absolute;background:#fff;border-radius:50%;animation:tw var(--d) ease-in-out infinite alternate}
+@keyframes tw{from{opacity:.1}to{opacity:1}}
+#game{position:fixed;inset:0;display:none;flex-direction:column}
+#game.on{display:flex}
+#gtitle{text-align:center;color:#fff;font-size:clamp(1rem,2.5vw,1.6rem);padding:.5rem 1rem;background:rgba(0,0,0,.5);letter-spacing:2px;text-shadow:0 0 15px #6af;flex-shrink:0;z-index:10}
+#wrap{display:flex;flex:1;overflow:hidden;position:relative}
+#pc{position:absolute;inset:0;z-index:0}
+#pc canvas{display:block;width:100%!important;height:100%!important}
+#ov{position:absolute;inset:0;display:flex;z-index:5;pointer-events:none}
+.pcol{flex:1;display:flex;flex-direction:column;align-items:center;padding:.5rem .5rem 0;pointer-events:none}
+.pname{font-size:clamp(.9rem,2vw,1.3rem);font-weight:bold;color:#fff;margin-bottom:.3rem;letter-spacing:1px;pointer-events:none}
+.cpanel{background:rgba(0,0,0,.6);border:1px solid rgba(255,255,255,.15);border-radius:14px;padding:.5rem .7rem;width:100%;max-width:220px;backdrop-filter:blur(6px);pointer-events:all}
+.ci{display:flex;align-items:center;gap:.5rem;padding:.3rem .2rem;border-radius:8px;cursor:pointer;transition:background .15s;user-select:none}
+.ci:hover{background:rgba(255,255,255,.08)}
+.ci.ck{opacity:.6}
+.cb{width:22px;height:22px;flex-shrink:0;border-radius:6px;border:2px solid rgba(255,255,255,.4);background:rgba(255,255,255,.05);display:flex;align-items:center;justify-content:center;font-size:14px;transition:all .2s}
+.ci.ck .cb{background:#4f4;border-color:#4f4;box-shadow:0 0 8px #4f4}
+.ie{font-size:1.1rem}
+.iname{color:#ddd;font-size:clamp(.7rem,1.5vw,.9rem);flex:1}
+.ci.ck .iname{text-decoration:line-through;color:#888}
+.cdiv{width:1px;background:linear-gradient(to bottom,transparent,rgba(255,255,255,.1) 20%,rgba(255,255,255,.1) 80%,transparent);flex-shrink:0;pointer-events:none}
+#wb{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:200;pointer-events:none}
+#wb.on{display:flex}
+.wt{font-size:clamp(2rem,6vw,5rem);color:#fff;text-shadow:0 0 40px #ff0,0 0 80px #f80;font-weight:bold;letter-spacing:4px;animation:wp .5s ease-in-out infinite alternate;text-align:center;padding:1rem 2rem;background:rgba(0,0,0,.4);border-radius:20px}
+@keyframes wp{from{transform:scale(1)}to{transform:scale(1.05);text-shadow:0 0 60px #ff0,0 0 120px #f80,0 0 200px #f40}}
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ║  ✏️  CONFIGURATION — edit to customise items and title       ║
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<script>
+const CONFIG = {
+  title: '☀️ Morning Checklist',
+  items: [
+    { name: 'Breakfast',          emoji: '🍳' },
+    { name: 'Put Bowl Away',      emoji: '🥣' },
+    { name: 'Dressed',            emoji: '👕' },
+    { name: 'Brush Teeth',        emoji: '🦷' },
+    { name: 'Feed Piggies',       emoji: '🐹' },
+    { name: 'Clean Piggies Cage', emoji: '🧹' },
+    { name: 'Drink Bottle',       emoji: '🥤' },
+    { name: 'Lunch',              emoji: '🥪' },
+    { name: 'Hat',                emoji: '🧢' },
+  ],
+};
+</script>
+<!-- ══════════════════════════════════════════════════════════════ -->
+
+<div id="setup">
+  <div class="sbg" id="sbg"></div>
+  <h1>🚀 Checklist Rocket</h1>
+  <p class="sub">Complete your checklist — build your robot — blast off!</p>
+  <div class="card">
+    <label>HOW MANY PLAYERS?</label>
+    <div class="row">
+      <button class="cbtn" id="dec">−</button>
+      <div id="ndisp">2</div>
+      <button class="cbtn" id="inc">+</button>
+    </div>
+    <button id="startbtn">🚀 LAUNCH GAME</button>
+  </div>
+</div>
+
+<div id="game">
+  <div id="gtitle"></div>
+  <div id="wrap">
+    <div id="pc"></div>
+    <div id="ov"></div>
+  </div>
+</div>
+
+<div id="wb"><div class="wt">🚀 BLAST OFF! 🚀</div></div>
+
+<script src="checklist-rocket-game.js"></script>
+</body>
+</html>
