@@ -19,14 +19,21 @@ const SFX = (() => {
     g.gain.exponentialRampToValueAtTime(0.001, t + d);
     o.start(t); o.stop(t + d + 0.05);
   };
-  const N = (d, v, dl) => {
+  const N = (d, v, dl, filterFreq) => {
     dl = dl || 0; v = v || 0.15;
     const c = C(), n = Math.floor(c.sampleRate * d);
     const buf = c.createBuffer(1, n, c.sampleRate);
     const dat = buf.getChannelData(0);
     for (let i = 0; i < n; i++) dat[i] = Math.random() * 2 - 1;
     const src = c.createBufferSource(), g = c.createGain();
-    src.buffer = buf; src.connect(g); g.connect(c.destination);
+    if (filterFreq) {
+      const filt = c.createBiquadFilter();
+      filt.type = 'lowpass'; filt.frequency.value = filterFreq;
+      src.buffer = buf; src.connect(filt); filt.connect(g);
+    } else {
+      src.buffer = buf; src.connect(g);
+    }
+    g.connect(c.destination);
     const t = c.currentTime + dl;
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.001, t + d);
@@ -36,17 +43,128 @@ const SFX = (() => {
     tick()    { T(880,'sine',0.12,0.25); T(1320,'sine',0.08,0.15,0.05); },
     part()    { T(330,'square',0.04,0.08); T(550,'square',0.04,0.08,0.05); T(880,'square',0.1,0.12,0.1); },
     complete(){ [523,659,784,1047].forEach((f,i)=>T(f,'sine',0.3,0.3,i*0.12)); },
-    launch()  {
-      N(3.5, 0.4);
-      const c=C(), o=c.createOscillator(), g=c.createGain();
-      o.connect(g); g.connect(c.destination); o.type='sawtooth';
-      o.frequency.setValueAtTime(110,c.currentTime);
-      o.frequency.exponentialRampToValueAtTime(35,c.currentTime+3);
-      g.gain.setValueAtTime(0.3,c.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+3);
-      o.start(c.currentTime); o.stop(c.currentTime+3.1);
+
+    // Dramatic countdown beep — deep thud + high ping
+    countBeep(n) {
+      const c = C();
+      // Low thud
+      const o1 = c.createOscillator(), g1 = c.createGain();
+      o1.connect(g1); g1.connect(c.destination); o1.type = 'sine';
+      o1.frequency.setValueAtTime(n===1?220:110, c.currentTime);
+      o1.frequency.exponentialRampToValueAtTime(40, c.currentTime + 0.3);
+      g1.gain.setValueAtTime(0.5, c.currentTime);
+      g1.gain.exponentialRampToValueAtTime(0.001, c.currentTime + 0.35);
+      o1.start(c.currentTime); o1.stop(c.currentTime + 0.4);
+      // High ping
+      const freq = n === 1 ? 1760 : 880;
+      T(freq, 'sine', 0.18, 0.4);
+      T(freq * 1.5, 'sine', 0.1, 0.2, 0.02);
+      // Noise burst
+      N(0.08, 0.25, 0, 800);
     },
-    win() { [523,659,784,1047,784,1047,1319].forEach((f,i)=>T(f,'sine',0.25,0.35,i*0.15)); },
+
+    // Rumble buildup during countdown
+    rumble(duration) {
+      const c = C();
+      // Deep rumble oscillator
+      const o = c.createOscillator(), g = c.createGain();
+      o.connect(g); g.connect(c.destination); o.type = 'sawtooth';
+      o.frequency.setValueAtTime(30, c.currentTime);
+      o.frequency.linearRampToValueAtTime(55, c.currentTime + duration);
+      g.gain.setValueAtTime(0.0, c.currentTime);
+      g.gain.linearRampToValueAtTime(0.18, c.currentTime + duration * 0.5);
+      g.gain.linearRampToValueAtTime(0.35, c.currentTime + duration);
+      o.start(c.currentTime); o.stop(c.currentTime + duration + 0.1);
+      // Filtered noise rumble
+      N(duration, 0.12, 0, 200);
+      // Mid rumble
+      const o2 = c.createOscillator(), g2 = c.createGain();
+      o2.connect(g2); g2.connect(c.destination); o2.type = 'square';
+      o2.frequency.setValueAtTime(55, c.currentTime);
+      o2.frequency.linearRampToValueAtTime(80, c.currentTime + duration);
+      g2.gain.setValueAtTime(0.0, c.currentTime);
+      g2.gain.linearRampToValueAtTime(0.08, c.currentTime + duration);
+      o2.start(c.currentTime); o2.stop(c.currentTime + duration + 0.1);
+    },
+
+    // Epic liftoff — massive roar + fanfare
+    launch() {
+      const c = C();
+      const now = c.currentTime;
+      // ── Massive noise roar ──
+      const n = Math.floor(c.sampleRate * 5);
+      const buf = c.createBuffer(1, n, c.sampleRate);
+      const dat = buf.getChannelData(0);
+      for (let i = 0; i < n; i++) dat[i] = Math.random() * 2 - 1;
+      const src = c.createBufferSource();
+      src.buffer = buf;
+      // Low-pass filter for deep rumble
+      const filt = c.createBiquadFilter();
+      filt.type = 'lowpass'; filt.frequency.setValueAtTime(300, now);
+      filt.frequency.linearRampToValueAtTime(800, now + 1.5);
+      const gN = c.createGain();
+      src.connect(filt); filt.connect(gN); gN.connect(c.destination);
+      gN.gain.setValueAtTime(0.6, now);
+      gN.gain.linearRampToValueAtTime(0.8, now + 0.3);
+      gN.gain.exponentialRampToValueAtTime(0.001, now + 5);
+      src.start(now);
+      // ── Deep bass sweep ──
+      const o1 = c.createOscillator(), g1 = c.createGain();
+      o1.connect(g1); g1.connect(c.destination); o1.type = 'sawtooth';
+      o1.frequency.setValueAtTime(80, now);
+      o1.frequency.exponentialRampToValueAtTime(25, now + 4);
+      g1.gain.setValueAtTime(0.4, now);
+      g1.gain.exponentialRampToValueAtTime(0.001, now + 4);
+      o1.start(now); o1.stop(now + 4.1);
+      // ── Sub bass ──
+      const o2 = c.createOscillator(), g2 = c.createGain();
+      o2.connect(g2); g2.connect(c.destination); o2.type = 'sine';
+      o2.frequency.setValueAtTime(40, now);
+      o2.frequency.exponentialRampToValueAtTime(20, now + 3);
+      g2.gain.setValueAtTime(0.5, now);
+      g2.gain.exponentialRampToValueAtTime(0.001, now + 3);
+      o2.start(now); o2.stop(now + 3.1);
+      // ── Heroic fanfare melody ──
+      const fanfare = [
+        [523,0],[659,0.15],[784,0.3],[1047,0.5],
+        [784,0.75],[1047,0.95],[1319,1.2],[1047,1.5],
+        [1319,1.8],[1568,2.1],
+      ];
+      fanfare.forEach(([f,dl])=>{
+        const o=c.createOscillator(), g=c.createGain();
+        o.connect(g); g.connect(c.destination); o.type='square';
+        o.frequency.value=f;
+        const t=now+dl;
+        g.gain.setValueAtTime(0,t);
+        g.gain.linearRampToValueAtTime(0.18,t+0.02);
+        g.gain.exponentialRampToValueAtTime(0.001,t+0.28);
+        o.start(t); o.stop(t+0.35);
+        // Harmonics
+        const o3=c.createOscillator(), g3=c.createGain();
+        o3.connect(g3); g3.connect(c.destination); o3.type='sine';
+        o3.frequency.value=f*2;
+        g3.gain.setValueAtTime(0,t);
+        g3.gain.linearRampToValueAtTime(0.08,t+0.02);
+        g3.gain.exponentialRampToValueAtTime(0.001,t+0.2);
+        o3.start(t); o3.stop(t+0.25);
+      });
+      // ── Shockwave boom at liftoff ──
+      const ob = c.createOscillator(), gb = c.createGain();
+      ob.connect(gb); gb.connect(c.destination); ob.type = 'sine';
+      ob.frequency.setValueAtTime(120, now);
+      ob.frequency.exponentialRampToValueAtTime(20, now + 0.5);
+      gb.gain.setValueAtTime(0.7, now);
+      gb.gain.exponentialRampToValueAtTime(0.001, now + 0.5);
+      ob.start(now); ob.stop(now + 0.6);
+    },
+
+    win() {
+      // Victory fanfare
+      const melody = [523,659,784,1047,784,1047,1319,1047,1319,1568];
+      melody.forEach((f,i)=>T(f,'sine',0.3,0.4,i*0.13));
+      // Triumphant chord
+      [523,659,784].forEach((f,i)=>T(f,'square',0.8,0.12,melody.length*0.13+i*0.02));
+    },
   };
 })();
 
@@ -115,9 +233,12 @@ function buildUI(){
   GS.players.forEach((p,pi)=>{
     if(pi>0){ const d=document.createElement('div'); d.className='cdiv'; ov.appendChild(d); }
     const col=document.createElement('div'); col.className='pcol';
+
+    // Left side: player name + checklist panel + launch button
+    const side=document.createElement('div'); side.className='pside';
     const nm=document.createElement('div'); nm.className='pname';
     nm.style.color=p.color.css; nm.style.textShadow=`0 0 12px ${p.color.css}`;
-    nm.textContent=`Player ${pi+1}`; col.appendChild(nm);
+    nm.textContent=`Player ${pi+1}`; side.appendChild(nm);
     const panel=document.createElement('div'); panel.className='cpanel';
     panel.style.borderColor=p.color.css+'55';
     GS.items.forEach((item,ii)=>{
@@ -126,7 +247,17 @@ function buildUI(){
       row.addEventListener('click',()=>onTick(pi,ii));
       panel.appendChild(row);
     });
-    col.appendChild(panel); ov.appendChild(col);
+    side.appendChild(panel);
+    // Launch button — hidden until robot complete
+    const lb=document.createElement('button');
+    lb.className='launch-btn'; lb.id=`lb${pi}`;
+    lb.textContent='🚀 LAUNCH!';
+    lb.style.background=`linear-gradient(135deg,${p.color.css},#ff2200)`;
+    lb.addEventListener('click',()=>onLaunchBtn(pi));
+    side.appendChild(lb);
+
+    col.appendChild(side);
+    ov.appendChild(col);
   });
 }
 
@@ -143,8 +274,18 @@ function onTick(pi,ii){
   if(PS) PS.events.emit('addPart',pi,partIdx);
   if(p.checked.every(Boolean)&&!p.done){
     p.done=true; SFX.complete();
-    setTimeout(()=>{ if(PS) PS.events.emit('launch',pi); },700);
+    // Show launch button instead of auto-launching
+    setTimeout(()=>{
+      const lb=document.getElementById(`lb${pi}`);
+      if(lb) lb.classList.add('ready');
+    }, 600);
   }
+}
+
+function onLaunchBtn(pi){
+  const lb=document.getElementById(`lb${pi}`);
+  if(lb){ lb.classList.remove('ready'); lb.disabled=true; }
+  if(PS) PS.events.emit('launch',pi);
 }
 
 // ═══════════════════════════════════════════════════════════════
@@ -249,7 +390,8 @@ class GameScene extends Phaser.Scene {
   }
 
   // ── Helpers ──────────────────────────────────────────────────
-  colCX(pi){ const cw=this.scale.width/GS.N; return cw*pi+cw/2; }
+  // Robot sits in the right half of each player column (left half = checklist)
+  colCX(pi){ const cw=this.scale.width/GS.N; return cw*pi+cw*0.75; }
   get gY(){ return this.scale.height-55; }
 
   drawAll(){
@@ -523,31 +665,52 @@ class GameScene extends Phaser.Scene {
   // ── Launch sequence ───────────────────────────────────────────
   doLaunch(pi){
     const rob=this.robs[pi];
-    this.camShake=6;
-    // Countdown then lift off
-    let countdown=3;
+    this.camShake=8;
+    // Start rumble buildup over 5 seconds
+    SFX.rumble(5.2);
+    let countdown=5;
     const tick=()=>{
       if(countdown>0){
+        SFX.countBeep(countdown);
         const cx=this.colCX(pi);
-        const txt=this.add.text(cx,this.gY-80,`${countdown}`,{
-          fontSize:'52px', color:'#ffff00',
-          stroke:'#000000', strokeThickness:5, fontStyle:'bold',
+        // Colour shifts red as countdown approaches zero
+        const colours=['#ffffff','#ffff00','#ffcc00','#ff8800','#ff4400'];
+        const col=colours[5-countdown]||'#ff4400';
+        const sz=48+((5-countdown)*8);
+        const txt=this.add.text(cx,this.gY-100,`${countdown}`,{
+          fontSize:`${sz}px`, color:col,
+          stroke:'#000000', strokeThickness:6, fontStyle:'bold',
         }).setDepth(40).setOrigin(0.5,0.5);
-        this.tweens.add({targets:txt,alpha:0,scaleX:2.5,scaleY:2.5,duration:850,onComplete:()=>txt.destroy()});
+        this.tweens.add({
+          targets:txt, alpha:0, scaleX:2.8, scaleY:2.8,
+          duration:880, ease:'Power2',
+          onComplete:()=>txt.destroy(),
+        });
+        // Increasing camera shake as countdown drops
+        this.camShake=Math.max(this.camShake, (5-countdown+1)*2);
         countdown--;
-        this.time.delayedCall(950,tick);
+        this.time.delayedCall(1000,tick);
       } else {
-        // LIFTOFF
+        // ── LIFTOFF ──
         SFX.launch();
         rob.launching=true;
         rob.vy=0;
-        this.camShake=14;
+        this.camShake=20;
         const cx=this.colCX(pi);
-        const txt=this.add.text(cx,this.gY-80,'LIFTOFF!',{
-          fontSize:'36px', color:'#ff8800',
-          stroke:'#000000', strokeThickness:4, fontStyle:'bold',
+        // "IGNITION" flash
+        const flash=this.add.graphics().setDepth(50);
+        flash.fillStyle(0xffffff,0.6); flash.fillRect(0,0,this.scale.width,this.scale.height);
+        this.tweens.add({targets:flash,alpha:0,duration:400,onComplete:()=>flash.destroy()});
+        // "LIFTOFF!" text
+        const txt=this.add.text(cx,this.gY-80,'🚀 LIFTOFF!',{
+          fontSize:'48px', color:'#ff8800',
+          stroke:'#000000', strokeThickness:5, fontStyle:'bold',
         }).setDepth(40).setOrigin(0.5,0.5);
-        this.tweens.add({targets:txt,alpha:0,y:this.gY-160,duration:1200,onComplete:()=>txt.destroy()});
+        this.tweens.add({
+          targets:txt, alpha:0, y:this.gY-200,
+          duration:1500, ease:'Power2',
+          onComplete:()=>txt.destroy(),
+        });
       }
     };
     tick();
