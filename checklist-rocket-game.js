@@ -267,6 +267,7 @@ function onTick(pi,ii){
   p.checked[ii]=true; SFX.tick();
   document.getElementById(`r${pi}_${ii}`).classList.add('ck');
   document.getElementById(`cb${pi}_${ii}`).textContent='✓';
+  if(GS.items[ii].name==='Turn off lights' && PS) PS.events.emit('lightsOn',pi);
   const itemIdx=p.built++;
   const total=GS.items.length;
   // Map item index evenly across 9 robot parts
@@ -335,6 +336,7 @@ class GameScene extends Phaser.Scene {
       launching:false, gone:false,
       shakeX:0, exTimer:0,
       flashT:0, flashOn:false,
+      litUp:false,
     }));
 
     this.floats=[];
@@ -351,6 +353,18 @@ class GameScene extends Phaser.Scene {
 
     this.events.on('addPart',(pi,partIdx)=>this.addPart(pi,partIdx));
     this.events.on('launch', (pi)=>this.doLaunch(pi));
+    this.events.on('lightsOn',(pi)=>{
+      this.robs[pi].litUp=true;
+      this.drawRobot(pi);
+      const cx=this.colCX(pi);
+      const baseY=this.gY+this.robs[pi].offsetY;
+      const txt=this.add.text(cx,baseY-180,'✨ Lights On!',{
+        fontSize:'18px', color:'#ffff88',
+        stroke:'#000000', strokeThickness:3, fontStyle:'bold',
+      }).setDepth(30).setOrigin(0.5,0.5);
+      this.floats.push({txt,x:cx,y:baseY-180,alpha:1.0});
+      this.camShake=Math.max(this.camShake,3);
+    });
   }
 
   update(_t,dt){
@@ -481,7 +495,7 @@ class GameScene extends Phaser.Scene {
     const cx=this.colCX(pi)+rob.shakeX;
     const baseY=this.gY+rob.offsetY;
     const col=GS.players[pi].color.hex;
-    const flash=rob.flashOn&&rob.launching;
+    const flash=(rob.flashOn&&rob.launching)||rob.litUp;
     const colW=W/GS.N;
     const sc=Math.min(1.0,colW/200,(this.scale.height*0.55)/220);
     const s=v=>v*sc;
@@ -618,6 +632,51 @@ class GameScene extends Phaser.Scene {
         g.fillStyle(0x888899,1); g.fillRect(cx-s(2),baseY-s(168),s(4),s(16));
         g.fillStyle(flash?0xff4444:0xff0000,1); g.fillCircle(cx,baseY-s(170),s(5));
         if(flash){ g.fillStyle(0xff0000,0.4); g.fillCircle(cx,baseY-s(170),s(9)); }
+      }
+    }
+    // ── Lit-up extra lights (drawn last, on top of pack) ────────
+    if(rob.litUp){
+      // Eyes — big bright glow
+      if(has('head')){
+        g.fillStyle(0xffffff,1);   g.fillCircle(cx-s(8),baseY-s(138),s(5));
+        g.fillStyle(0xffffff,1);   g.fillCircle(cx+s(8),baseY-s(138),s(5));
+        g.fillStyle(0x00ffff,0.5); g.fillCircle(cx-s(8),baseY-s(138),s(10));
+        g.fillStyle(0x00ffff,0.5); g.fillCircle(cx+s(8),baseY-s(138),s(10));
+        g.fillStyle(0x00ffff,0.2); g.fillCircle(cx-s(8),baseY-s(138),s(15));
+        g.fillStyle(0x00ffff,0.2); g.fillCircle(cx+s(8),baseY-s(138),s(15));
+        // Antenna beacon — bigger glow
+        g.fillStyle(0xff2222,1);   g.fillCircle(cx,baseY-s(170),s(6));
+        g.fillStyle(0xff4444,0.5); g.fillCircle(cx,baseY-s(170),s(11));
+        g.fillStyle(0xff4444,0.2); g.fillCircle(cx,baseY-s(170),s(17));
+      }
+      // Hand orbs — visible on arm ends, not hidden by pack
+      if(has('lArm')){
+        g.fillStyle(0xff4444,1);   g.fillCircle(cx-s(37),baseY-s(48),s(6));
+        g.fillStyle(0xff4444,0.45);g.fillCircle(cx-s(37),baseY-s(48),s(11));
+        g.fillStyle(0xff4444,0.15);g.fillCircle(cx-s(37),baseY-s(48),s(17));
+      }
+      if(has('rArm')){
+        g.fillStyle(0x44ff88,1);   g.fillCircle(cx+s(37),baseY-s(48),s(6));
+        g.fillStyle(0x44ff88,0.45);g.fillCircle(cx+s(37),baseY-s(48),s(11));
+        g.fillStyle(0x44ff88,0.15);g.fillCircle(cx+s(37),baseY-s(48),s(17));
+      }
+      // Knee lights
+      if(has('lLeg')){
+        g.fillStyle(0x4488ff,1);   g.fillCircle(cx-s(16),baseY-s(30),s(5));
+        g.fillStyle(0x4488ff,0.4); g.fillCircle(cx-s(16),baseY-s(30),s(9));
+      }
+      if(has('rLeg')){
+        g.fillStyle(0xffcc00,1);   g.fillCircle(cx+s(16),baseY-s(30),s(5));
+        g.fillStyle(0xffcc00,0.4); g.fillCircle(cx+s(16),baseY-s(30),s(9));
+      }
+      // Foot strips
+      if(has('lFoot')){
+        g.fillStyle(0xcc44ff,0.9); g.fillRoundedRect(cx-s(26),baseY-s(5),s(20),s(3),s(1));
+        g.fillStyle(0xcc44ff,0.3); g.fillRoundedRect(cx-s(27),baseY-s(7),s(22),s(5),s(2));
+      }
+      if(has('rFoot')){
+        g.fillStyle(0x22ddff,0.9); g.fillRoundedRect(cx+s(6), baseY-s(5),s(20),s(3),s(1));
+        g.fillStyle(0x22ddff,0.3); g.fillRoundedRect(cx+s(5), baseY-s(7),s(22),s(5),s(2));
       }
     }
   }
