@@ -357,7 +357,7 @@ class GameScene extends Phaser.Scene {
         const firstItem = iis.length ? GS.items[iis[0]] : null;
         const labelStr = firstItem ? `${firstItem.emoji} ${firstItem.name}` : PART_LABELS[partIdx];
         return this.add.text(0, 0, labelStr, {
-          fontSize: '11px', color: p.color.css,
+          fontSize: '20px', color: p.color.css,
           stroke: '#000000', strokeThickness: 3, align: 'center',
         }).setDepth(8).setOrigin(0.5, 0);
       })
