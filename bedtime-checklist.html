@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bedtime Checklist 🌙</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(160deg, #0d0d2b 0%, #1a1a4e 50%, #2d1b69 100%);
+      min-height: 100vh;
+      padding: 28px 16px 72px;
+    }
+
+    /* ── Stars background ─────────────────────────────── */
+    .stars {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+
+    .star {
+      position: absolute;
+      background: white;
+      border-radius: 50%;
+      animation: twinkle var(--dur, 3s) ease-in-out infinite var(--delay, 0s);
+    }
+
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.2; transform: scale(1); }
+      50%       { opacity: 1;   transform: scale(1.4); }
+    }
+
+    /* ── Page header ─────────────────────────────── */
+    .page-header { text-align: center; margin-bottom: 24px; position: relative; z-index: 1; }
+
+    .page-title {
+      font-size: 2.5rem;
+      font-weight: 900;
+      background: linear-gradient(135deg, #a78bfa 0%, #c4b5fd 50%, #e9d5ff 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+
+    .page-date {
+      color: #a0a0c0;
+      font-size: 0.9rem;
+      letter-spacing: 0.4px;
+    }
+
+    /* ── Progress chip ──────────────────────────── */
+    .progress-row {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 20px;
+      position: relative;
+      z-index: 1;
+    }
+
+    .progress-chip {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(167, 139, 250, 0.3);
+      border-radius: 24px;
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #c4b5fd;
+    }
+
+    .prog-count {
+      font-size: 1.3rem;
+      font-weight: 900;
+      color: #a78bfa;
+    }
+
+    .prog-total { color: #6b6b9a; }
+
+    /* ── Grid ────────────────────────────────────── */
+    .checklist-grid {
+      max-width: 540px;
+      margin: 0 auto;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(167, 139, 250, 0.2);
+      border-radius: 22px;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.4);
+      overflow: hidden;
+      position: relative;
+      z-index: 1;
+    }
+
+    .grid-header {
+      display: grid;
+      grid-template-columns: 1fr 80px;
+      background: linear-gradient(135deg, #4c1d95 0%, #5b21b6 100%);
+    }
+
+    .grid-row {
+      display: grid;
+      grid-template-columns: 1fr 80px;
+      border-bottom: 1px solid rgba(167, 139, 250, 0.1);
+      transition: background 0.3s;
+    }
+
+    .grid-row:last-child { border-bottom: none; }
+    .grid-row:nth-child(even) { background: rgba(255,255,255,0.03); }
+
+    .grid-row.row-complete { background: rgba(60, 194, 110, 0.08) !important; }
+    .grid-row.row-complete .item-name {
+      text-decoration: line-through;
+      color: #6b8f6b;
+    }
+    .grid-row.row-complete .item-time {
+      color: #6b8f6b;
+    }
+
+    /* ── Header cells ────────────────────────────── */
+    .header-cell {
+      padding: 14px 12px;
+      display: flex;
+      align-items: center;
+      font-weight: 800;
+      font-size: 0.9rem;
+      color: #e9d5ff;
+      letter-spacing: 0.3px;
+    }
+
+    .header-task { padding-left: 22px; }
+    .header-check { justify-content: center; }
+
+    /* ── Item cells ───────────────────────────────── */
+    .cell {
+      padding: 10px 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .item-cell {
+      padding: 14px 16px 14px 22px;
+      justify-content: flex-start;
+      gap: 12px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .item-top {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .item-emoji { font-size: 1.45rem; flex-shrink: 0; }
+
+    .item-name {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: #e2e2f0;
+      transition: color 0.3s;
+    }
+
+    .item-time {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #a78bfa;
+      background: rgba(167, 139, 250, 0.15);
+      border-radius: 8px;
+      padding: 2px 8px;
+      margin-left: 37px;
+      transition: color 0.3s;
+    }
+
+    /* ── Custom checkbox ─────────────────────────── */
+    .check-label {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+      display: block;
+    }
+
+    .check-label input {
+      opacity: 0;
+      position: absolute;
+      inset: 0;
+      cursor: pointer;
+      z-index: 2;
+      margin: 0;
+    }
+
+    .check-circle {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      border: 2.5px solid rgba(167, 139, 250, 0.4);
+      background: rgba(255,255,255,0.05);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.35rem;
+      font-weight: 900;
+      transition: all 0.28s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      user-select: none;
+    }
+
+    .check-mark {
+      opacity: 0;
+      transform: scale(0) rotate(-20deg);
+      transition: all 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+      line-height: 1;
+    }
+
+    .check-label:hover .check-circle {
+      border-color: #a78bfa;
+      background: rgba(167, 139, 250, 0.1);
+      transform: scale(1.06);
+    }
+
+    .check-label input:checked ~ .check-circle {
+      background: #7c3aed;
+      border-color: #a78bfa;
+      transform: scale(1.12);
+      box-shadow: 0 0 0 4px rgba(167, 139, 250, 0.25);
+    }
+
+    .check-label input:checked ~ .check-circle .check-mark {
+      opacity: 1;
+      transform: scale(1) rotate(0deg);
+    }
+
+    /* ── Particle canvas ─────────────────────────── */
+    #particle-canvas {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 9999;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── Emoji burst ─────────────────────────────── */
+    .burst-emoji {
+      position: fixed;
+      pointer-events: none;
+      z-index: 9998;
+      font-size: 1.6rem;
+      animation: emojiFly 0.85s ease-out forwards;
+    }
+
+    @keyframes emojiFly {
+      0%   { transform: translate(-50%, -50%) scale(0.4); opacity: 1; }
+      60%  { opacity: 1; }
+      100% {
+        transform: translate(calc(-50% + var(--dx, 0px)), calc(-50% + var(--dy, 0px))) scale(1.2);
+        opacity: 0;
+      }
+    }
+
+    /* ── ZZZ completion overlay ──────────────────── */
+    #zzz-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(10, 10, 30, 0.92);
+      z-index: 10000;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 20px;
+      animation: fadeInOverlay 0.8s ease forwards;
+    }
+
+    #zzz-overlay.visible {
+      display: flex;
+    }
+
+    @keyframes fadeInOverlay {
+      from { opacity: 0; }
+      to   { opacity: 1; }
+    }
+
+    .zzz-moon {
+      font-size: 6rem;
+      animation: floatMoon 3s ease-in-out infinite;
+    }
+
+    @keyframes floatMoon {
+      0%, 100% { transform: translateY(0) rotate(-10deg); }
+      50%       { transform: translateY(-18px) rotate(5deg); }
+    }
+
+    .zzz-text {
+      font-size: 2rem;
+      font-weight: 900;
+      color: #c4b5fd;
+      text-align: center;
+      line-height: 1.4;
+    }
+
+    .zzz-letters {
+      display: flex;
+      gap: 8px;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .zzz-letter {
+      font-weight: 900;
+      color: #a78bfa;
+      animation: zzzFloat var(--dur) ease-in-out infinite var(--delay);
+      opacity: 0;
+    }
+
+    @keyframes zzzFloat {
+      0%   { opacity: 0; transform: translate(0, 0) scale(0.5); }
+      20%  { opacity: 1; }
+      80%  { opacity: 0.6; }
+      100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(var(--ts)); }
+    }
+
+    .zzz-sub {
+      font-size: 1.1rem;
+      color: #7c6fa0;
+      text-align: center;
+    }
+
+    .zzz-close {
+      margin-top: 12px;
+      padding: 12px 32px;
+      background: rgba(167, 139, 250, 0.15);
+      border: 1px solid rgba(167, 139, 250, 0.4);
+      border-radius: 30px;
+      color: #c4b5fd;
+      font-size: 0.9rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .zzz-close:hover {
+      background: rgba(167, 139, 250, 0.3);
+      transform: translateY(-2px);
+    }
+
+    /* ── Completion banner ───────────────────────── */
+    #completion-banner {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-160px);
+      background: linear-gradient(135deg, #4c1d95, #7c3aed);
+      color: #e9d5ff;
+      padding: 16px 38px;
+      border-radius: 50px;
+      font-size: 1.2rem;
+      font-weight: 800;
+      box-shadow: 0 8px 32px rgba(124, 58, 237, 0.5);
+      z-index: 10000;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+      white-space: nowrap;
+    }
+
+    #completion-banner.visible {
+      transform: translateX(-50%) translateY(0);
+    }
+
+    /* ── Reset button ────────────────────────────── */
+    #reset-btn {
+      display: block;
+      margin: 26px auto 0;
+      padding: 12px 30px;
+      background: transparent;
+      color: #6b6b9a;
+      border: 1px solid rgba(107, 107, 154, 0.3);
+      border-radius: 30px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.3px;
+      position: relative;
+      z-index: 1;
+    }
+
+    #reset-btn:hover {
+      background: rgba(167, 139, 250, 0.1);
+      color: #c4b5fd;
+      border-color: rgba(167, 139, 250, 0.4);
+      transform: translateY(-2px);
+    }
+
+    /* ── Responsive ──────────────────────────────── */
+    @media (max-width: 500px) {
+      .page-title { font-size: 1.9rem; }
+      .grid-header,
+      .grid-row { grid-template-columns: 1fr 68px; }
+      .header-cell { padding: 12px 8px; font-size: 0.82rem; }
+      .item-cell   { padding: 12px 12px 12px 14px; }
+      .item-emoji  { font-size: 1.2rem; }
+      .item-name   { font-size: 0.85rem; }
+      .cell        { padding: 8px 4px; }
+      .check-label,
+      .check-circle { width: 40px; height: 40px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="stars" id="stars-bg"></div>
+<canvas id="particle-canvas"></canvas>
+<div id="completion-banner">🌙 Sweet dreams! Time to sleep! 💤</div>
+
+<!-- ZZZ Overlay -->
+<div id="zzz-overlay">
+  <div class="zzz-moon">🌙</div>
+  <div class="zzz-letters" id="zzz-letters"></div>
+  <div class="zzz-text">Well done!<br>Time to sleep! 😴</div>
+  <div class="zzz-sub">Sweet dreams ✨</div>
+  <button class="zzz-close" onclick="closeZzz()">Close</button>
+</div>
+
+<div class="page-header">
+  <h1 class="page-title">🌙 Bedtime Checklist</h1>
+  <p class="page-date" id="date-display"></p>
+</div>
+
+<div class="progress-row">
+  <div class="progress-chip">
+    <span>Tasks done:</span>
+    <span class="prog-count" id="prog-count">0</span>
+    <span class="prog-total">/ 5</span>
+  </div>
+</div>
+
+<div class="checklist-grid" id="checklist-grid"></div>
+
+<button id="reset-btn" onclick="resetAll()">↺ Reset Tonight's Progress</button>
+
+<script>
+// ── Checklist items ───────────────────────────────────────────────
+const ITEMS = [
+  { time: '7:00 pm',  name: 'Brush Teeth',      emoji: '🦷' },
+  { time: '7:10 pm',  name: 'Shower & Toilet',  emoji: '🚿' },
+  { time: '7:20 pm',  name: 'Pyjamas',          emoji: '🛌' },
+  { time: '7:30 pm',  name: 'Quiet Reading',    emoji: '📖' },
+  { time: '8:00 pm',  name: 'Lights Out',       emoji: '💡' },
+];
+
+
+// ── Stars background ──────────────────────────────────────────────
+(function buildStars() {
+  const container = document.getElementById('stars-bg');
+  for (let i = 0; i < 120; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2.5 + 0.5;
+    s.style.cssText = [
+      `width:${size}px`,
+      `height:${size}px`,
+      `left:${Math.random() * 100}%`,
+      `top:${Math.random() * 100}%`,
+      `--dur:${(Math.random() * 4 + 2).toFixed(1)}s`,
+      `--delay:-${(Math.random() * 5).toFixed(1)}s`,
+    ].join(';');
+    container.appendChild(s);
+  }
+})();
+
+
+// ── Audio context ─────────────────────────────────────────────────
+let _ac = null;
+function getAC() {
+  if (!_ac) _ac = new (window.AudioContext || window.webkitAudioContext)();
+  if (_ac.state === 'suspended') _ac.resume();
+  return _ac;
+}
+
+
+// ── Soft chime for check ──────────────────────────────────────────
+function sndSoftChime(ac) {
+  [523.25, 659.25, 783.99].forEach((f, i) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type = 'sine'; o.frequency.value = f;
+    const t = ac.currentTime + i * 0.15;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.2, t + 0.03);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+    o.start(t); o.stop(t + 0.7);
+  });
+}
+
+// ── Lullaby-style completion sound ───────────────────────────────
+function sndLullaby(ac) {
+  // Gentle descending notes
+  [[784,0],[659,0.25],[523,0.5],[392,0.78],[523,1.1]].forEach(([f, dt]) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.connect(g); g.connect(ac.destination);
+    o.type = 'sine'; o.frequency.value = f;
+    const t = ac.currentTime + dt;
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.18, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+    o.start(t); o.stop(t + 0.55);
+  });
+}
+
+
+// ── Particle engine ───────────────────────────────────────────────
+const canvas = document.getElementById('particle-canvas');
+const cx     = canvas.getContext('2d');
+let   parts  = [];
+let   rafId  = null;
+
+function resizeCanvas() {
+  canvas.width  = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+function addParts(x, y, opts) {
+  const { count = 40, colors, shapes, speed = 0.8, gravity = 0.1, life = 75 } = opts;
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2;
+    const s = (Math.random() * 6 + 2) * speed;
+    parts.push({
+      x, y,
+      vx: Math.cos(a) * s,
+      vy: Math.sin(a) * s - 2.5,
+      gravity,
+      color:   colors[Math.floor(Math.random() * colors.length)],
+      shape:   shapes[Math.floor(Math.random() * shapes.length)],
+      size:    Math.random() * 8 + 4,
+      rot:     Math.random() * Math.PI * 2,
+      rotV:    (Math.random() - 0.5) * 0.22,
+      life,
+      maxLife: life,
+    });
+  }
+  if (!rafId) rafId = requestAnimationFrame(tick);
+}
+
+function tick() {
+  cx.clearRect(0, 0, canvas.width, canvas.height);
+  parts = parts.filter(p => p.life > 0);
+
+  for (const p of parts) {
+    p.x  += p.vx;
+    p.y  += p.vy;
+    p.vy += p.gravity;
+    p.vx *= 0.988;
+    p.rot += p.rotV;
+    p.life--;
+
+    const alpha = p.life / p.maxLife;
+    cx.save();
+    cx.globalAlpha = alpha;
+    cx.fillStyle   = p.color;
+    cx.translate(p.x, p.y);
+    cx.rotate(p.rot);
+
+    if      (p.shape === 'rect')   { cx.fillRect(-p.size / 2, -p.size * 0.3, p.size, p.size * 0.6); }
+    else if (p.shape === 'circle') { cx.beginPath(); cx.arc(0, 0, p.size / 2, 0, Math.PI * 2); cx.fill(); }
+    else if (p.shape === 'star')   { drawStar(cx, p.size / 2); }
+
+    cx.restore();
+  }
+
+  if (parts.length) {
+    rafId = requestAnimationFrame(tick);
+  } else {
+    rafId = null;
+    cx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function drawStar(c, r) {
+  const inner = r * 0.42, spikes = 5;
+  let rot = -Math.PI / 2;
+  const step = Math.PI / spikes;
+  c.beginPath();
+  for (let i = 0; i < spikes * 2; i++) {
+    const radius = i % 2 === 0 ? r : inner;
+    if (i === 0) c.moveTo(Math.cos(rot) * radius, Math.sin(rot) * radius);
+    else         c.lineTo(Math.cos(rot) * radius, Math.sin(rot) * radius);
+    rot += step;
+  }
+  c.closePath();
+  c.fill();
+}
+
+function elXY(el) {
+  const r = el.getBoundingClientRect();
+  return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
+}
+
+function spawnStarBurst(el) {
+  const { x, y } = elXY(el);
+  addParts(x, y, {
+    count:  45,
+    colors: ['#a78bfa','#c4b5fd','#e9d5ff','#7c3aed','#ddd6fe','#818cf8','#f5d0fe'],
+    shapes: ['star','circle','star'],
+    speed:  1.0,
+    gravity: 0.08,
+    life:   80,
+  });
+}
+
+function spawnMoonDust(el) {
+  const { x, y } = elXY(el);
+  addParts(x, y, {
+    count:  55,
+    colors: ['#fef3c7','#fde68a','#fcd34d','#c4b5fd','#ffffff','#e0e7ff'],
+    shapes: ['circle','star','circle'],
+    speed:  0.9,
+    gravity: 0.06,
+    life:   90,
+  });
+}
+
+
+// ── Build the UI ──────────────────────────────────────────────────
+function buildUI() {
+  document.getElementById('date-display').textContent =
+    new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+    });
+
+  const grid = document.getElementById('checklist-grid');
+
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className = 'grid-header';
+  hdr.innerHTML = `
+    <div class="header-cell header-task">Task</div>
+    <div class="header-cell header-check">Done</div>
+  `;
+  grid.appendChild(hdr);
+
+  // Item rows
+  ITEMS.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'grid-row';
+    row.id = `row-${i}`;
+    row.innerHTML = `
+      <div class="cell item-cell">
+        <div class="item-top">
+          <span class="item-emoji">${item.emoji}</span>
+          <span class="item-name">${item.name}</span>
+        </div>
+        <div class="item-time">${item.time}</div>
+      </div>
+      <div class="cell">
+        <label class="check-label">
+          <input type="checkbox" id="cb-${i}" onchange="onCheck(this, ${i})">
+          <div class="check-circle">
+            <span class="check-mark">✓</span>
+          </div>
+        </label>
+      </div>
+    `;
+    grid.appendChild(row);
+  });
+}
+
+
+// ── Event handling ────────────────────────────────────────────────
+function onCheck(cb, i) {
+  if (cb.checked) {
+    const circle = cb.nextElementSibling;
+    try { sndSoftChime(getAC()); } catch(e) {}
+    spawnStarBurst(circle);
+  }
+  updateProgress();
+  updateRow(i);
+  saveState();
+
+  if (cb.checked) {
+    const allDone = ITEMS.every((_, idx) => {
+      const c = document.getElementById(`cb-${idx}`);
+      return c && c.checked;
+    });
+    if (allDone) setTimeout(celebrateAll, 600);
+  }
+}
+
+function updateProgress() {
+  const count = ITEMS.filter((_, i) => {
+    const cb = document.getElementById(`cb-${i}`);
+    return cb && cb.checked;
+  }).length;
+  document.getElementById('prog-count').textContent = count;
+}
+
+function updateRow(i) {
+  const cb  = document.getElementById(`cb-${i}`);
+  const row = document.getElementById(`row-${i}`);
+  if (row) row.classList.toggle('row-complete', cb && cb.checked);
+}
+
+
+// ── ZZZ overlay ───────────────────────────────────────────────────
+function buildZzz() {
+  const container = document.getElementById('zzz-letters');
+  container.innerHTML = '';
+
+  // Floating ZZZ letters of varying sizes
+  const letters = [
+    { text: 'Z', size: '3rem',   tx: '-60px', ty: '-80px',  ts: '1.5', dur: '3s',   delay: '0s'   },
+    { text: 'Z', size: '4.5rem', tx: '0px',   ty: '-120px', ts: '2',   dur: '3.5s', delay: '0.4s' },
+    { text: 'Z', size: '2rem',   tx: '55px',  ty: '-70px',  ts: '1.2', dur: '2.8s', delay: '0.8s' },
+    { text: 'Z', size: '6rem',   tx: '-20px', ty: '-160px', ts: '2.5', dur: '4s',   delay: '1.2s' },
+    { text: 'Z', size: '3.5rem', tx: '80px',  ty: '-100px', ts: '1.8', dur: '3.2s', delay: '1.6s' },
+    { text: 'Z', size: '5rem',   tx: '-90px', ty: '-130px', ts: '2.2', dur: '3.8s', delay: '2s'   },
+    { text: 'Z', size: '2.5rem', tx: '40px',  ty: '-50px',  ts: '1.3', dur: '2.5s', delay: '2.4s' },
+  ];
+
+  letters.forEach(l => {
+    const span = document.createElement('span');
+    span.className = 'zzz-letter';
+    span.textContent = l.text;
+    span.style.cssText = [
+      `font-size:${l.size}`,
+      `--tx:${l.tx}`,
+      `--ty:${l.ty}`,
+      `--ts:${l.ts}`,
+      `--dur:${l.dur}`,
+      `--delay:${l.delay}`,
+    ].join(';');
+    container.appendChild(span);
+  });
+}
+
+function showZzz() {
+  buildZzz();
+  document.getElementById('zzz-overlay').classList.add('visible');
+}
+
+function closeZzz() {
+  document.getElementById('zzz-overlay').classList.remove('visible');
+}
+
+
+// ── Full completion celebration ───────────────────────────────────
+function celebrateAll() {
+  // Moon dust bursts across screen
+  for (let i = 0; i < 8; i++) {
+    setTimeout(() => {
+      const bx = Math.random() * window.innerWidth;
+      const by = Math.random() * window.innerHeight * 0.7;
+      const fakeEl = { getBoundingClientRect: () => ({ left: bx - 1, top: by - 1, width: 2, height: 2 }) };
+      spawnMoonDust(fakeEl);
+    }, i * 200);
+  }
+
+  // Lullaby sound
+  try { sndLullaby(getAC()); } catch(e) {}
+
+  // Banner
+  const banner = document.getElementById('completion-banner');
+  banner.classList.add('visible');
+  setTimeout(() => banner.classList.remove('visible'), 4000);
+
+  // ZZZ overlay after a short pause
+  setTimeout(showZzz, 2000);
+}
+
+
+// ── State persistence ─────────────────────────────────────────────
+function storeKey() {
+  const d = new Date();
+  return `bedtime-cl-${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;
+}
+
+function saveState() {
+  try {
+    const state = {};
+    ITEMS.forEach((_, i) => {
+      const cb = document.getElementById(`cb-${i}`);
+      if (cb) state[i] = cb.checked;
+    });
+    localStorage.setItem(storeKey(), JSON.stringify(state));
+  } catch(e) {}
+}
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(storeKey());
+    if (!raw) return;
+    const state = JSON.parse(raw);
+    Object.entries(state).forEach(([key, val]) => {
+      const cb = document.getElementById(`cb-${key}`);
+      if (cb) cb.checked = val;
+    });
+    updateProgress();
+    ITEMS.forEach((_, i) => updateRow(i));
+  } catch(e) {}
+}
+
+function resetAll() {
+  if (!confirm('Reset tonight\'s checklist?')) return;
+  try { localStorage.removeItem(storeKey()); } catch(e) {}
+  ITEMS.forEach((_, i) => {
+    const cb = document.getElementById(`cb-${i}`);
+    if (cb) cb.checked = false;
+    updateRow(i);
+  });
+  updateProgress();
+}
+
+
+// ── Init ──────────────────────────────────────────────────────────
+buildUI();
+loadState();
+</script>
+</body>
+</html>
