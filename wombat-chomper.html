@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐾 Wombat Chomper</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; width: 100vw; height: 100vh; }
+    canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+    #panel {
+      position: fixed; left: 20px; top: 50%; transform: translateY(-50%);
+      background: rgba(255, 248, 215, 0.94);
+      border-radius: 18px; padding: 20px 18px; width: 270px;
+      max-height: 85vh; overflow-y: auto;
+      box-shadow: 0 6px 30px rgba(0,0,0,0.28);
+      border: 2px solid rgba(150, 100, 30, 0.35);
+      z-index: 20;
+    }
+    #panel h1 { font-size: 1.15rem; font-weight: 900; color: #5a2d00; text-align: center; margin-bottom: 14px; }
+    .item {
+      display: flex; align-items: center; gap: 10px;
+      padding: 8px 10px; border-radius: 10px; cursor: pointer;
+      transition: background 0.15s, opacity 0.3s;
+      user-select: none; margin-bottom: 4px;
+    }
+    .item:hover:not(.done) { background: rgba(150,100,30,0.1); }
+    .item.done { opacity: 0.45; }
+    .circle {
+      width: 26px; height: 26px; border-radius: 50%;
+      border: 2px solid #a06020; background: white;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px; flex-shrink: 0; transition: all 0.2s;
+    }
+    .item.done .circle { background: #4a9020; border-color: #4a9020; color: white; }
+    .item-emoji { font-size: 1.1rem; }
+    .item-name { font-size: 0.88rem; font-weight: 600; color: #3d2000; }
+    .item.done .item-name { text-decoration: line-through; color: #999; }
+    #prog-wrap { margin-top: 14px; height: 8px; background: rgba(150,100,30,0.18); border-radius: 6px; overflow: hidden; }
+    #prog-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #4a9020, #7cd440); border-radius: 6px; transition: width 0.4s ease; }
+    #done-msg { display: none; margin-top: 14px; text-align: center; font-size: 0.95rem; font-weight: 800; color: #3d6b00; padding: 8px; background: rgba(100,200,50,0.15); border-radius: 10px; }
+  </style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div id="panel">
+  <h1 id="title"></h1>
+  <div id="items-list"></div>
+  <div id="prog-wrap"><div id="prog-fill"></div></div>
+  <div id="done-msg">🎉 Wombat is free! 🎉</div>
+</div>
+<script>
+// ============================================================
+//  CONFIG — edit items and title here
+// ============================================================
+const CONFIG = {
+  title: "🐾 Wombat Chomper",
+  items: [
+    { name: "Wake up",       emoji: "⏰" },
+    { name: "Brush teeth",   emoji: "🦷" },
+    { name: "Get dressed",   emoji: "👕" },
+    { name: "Eat breakfast", emoji: "🥣" },
+    { name: "Drink water",   emoji: "💧" },
+    { name: "Make bed",      emoji: "🛏️" },
+    { name: "Pack bag",      emoji: "🎒" },
+    { name: "Put on shoes",  emoji: "👟" },
+  ]
+};
+// ============================================================
+
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+
+let W, H, groundY;
+const grassTufts = [];
+
+// ---- Resize ----
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+  groundY = H * 0.68;
+  genGrass();
+  recalcPatches();
+}
+window.addEventListener('resize', resize);
+
+function genGrass() {
+  grassTufts.length = 0;
+  for (let x = 5; x < W; x += 22 + Math.sin(x * 0.31) * 7) {
+    grassTufts.push({
+      x,
+      h: [6 + Math.random() * 9, 8 + Math.random() * 11, 5 + Math.random() * 8],
+      a: [(Math.random()-0.5)*0.5, (Math.random()-0.5)*0.2, (Math.random()-0.5)*0.5]
+    });
+  }
+}
+
+// ---- Patches ----
+const patches = [];
+
+function initPatches() {
+  const n = CONFIG.items.length;
+  const cols = Math.min(n, 4);
+  patches.length = 0;
+  for (let i = 0; i < n; i++) {
+    const col = i % cols;
+    const row = Math.floor(i / cols);
+    patches.push({
+      col, row,
+      relJX: (Math.random() - 0.5) * 0.28,
+      jY: (Math.random() - 0.5) * 22,
+      size: 26 + Math.random() * 14,
+      eaten: 0,   // 0=full, 1=gone
+      hue: 100 + Math.random() * 35,
+      x: 0, y: 0,  // set by recalcPatches
+      leaves: Array.from({length: 7}, (_, j) => ({
+        ang: (j / 7) * Math.PI * 2,
+        dist: 12 + Math.random() * 18,
+        sz: 7 + Math.random() * 9,
+        hue: 100 + Math.random() * 40,
+        lig: 28 + Math.random() * 18,
+      })),
+    });
+  }
+}
+
+function recalcPatches() {
+  const left = 315, right = W - 55;
+  const n = CONFIG.items.length;
+  const cols = Math.min(n, 4);
+  const cellW = (right - left) / cols;
+  patches.forEach((p, i) => {
+    p.x = left + p.col * cellW + cellW * 0.5 + p.relJX * cellW;
+    p.y = groundY - 48 - p.row * 128 + p.jY;
+  });
+}
+
+// ---- Wombat ----
+const W0 = {
+  x: 0, y: 0, facing: 1,
+  state: 'idle',   // idle | walking | chomping | bouncing
+  targetIdx: -1,
+  chompMs: 0, lastChomp: 0,
+  idleMs: 0, walkPhase: 0,
+  bvx: 3.5, bvy: 2.3,
+};
+const queue = [];
+let allDone = false;
+
+// ---- Audio ----
+let AC;
+function ensureAudio() {
+  if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
+  if (AC.state === 'suspended') AC.resume();
+}
+function playChomp() {
+  if (!AC) return;
+  const t = AC.currentTime;
+  const o = AC.createOscillator(), g = AC.createGain();
+  o.connect(g); g.connect(AC.destination);
+  o.type = 'sawtooth';
+  o.frequency.setValueAtTime(190, t);
+  o.frequency.exponentialRampToValueAtTime(65, t + 0.11);
+  g.gain.setValueAtTime(0.22, t);
+  g.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
+  o.start(t); o.stop(t + 0.15);
+}
+function playDone() {
+  if (!AC) return;
+  [523, 659, 784, 1047].forEach((f, i) => {
+    const t = AC.currentTime + i * 0.14;
+    const o = AC.createOscillator(), g = AC.createGain();
+    o.connect(g); g.connect(AC.destination);
+    o.type = 'triangle'; o.frequency.value = f;
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.2, t + 0.05);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+    o.start(t); o.stop(t + 0.39);
+  });
+}
+
+// ---- Particles ----
+const parts = [];
+function burst(x, y) {
+  for (let i = 0; i < 18; i++) {
+    const ang = Math.random() * Math.PI * 2;
+    const spd = 1.5 + Math.random() * 4;
+    parts.push({ x, y: y - 12, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd - 2.5,
+      life: 1, hue: 80 + Math.random()*60, sz: 4 + Math.random()*6 });
+  }
+}
+
+// ---- UI ----
+document.getElementById('title').textContent = CONFIG.title;
+const list = document.getElementById('items-list');
+CONFIG.items.forEach((item, i) => {
+  const div = document.createElement('div');
+  div.className = 'item'; div.id = `item-${i}`;
+  div.innerHTML = `<div class="circle" id="c-${i}"></div><span class="item-emoji">${item.emoji}</span><span class="item-name">${item.name}</span>`;
+  div.addEventListener('click', () => { ensureAudio(); tick(i); });
+  list.appendChild(div);
+});
+
+function tick(i) {
+  const el = document.getElementById(`item-${i}`);
+  if (el.classList.contains('done')) return;
+  el.classList.add('done');
+  document.getElementById(`c-${i}`).textContent = '✓';
+  queue.push(i);
+  const n = document.querySelectorAll('.item.done').length;
+  document.getElementById('prog-fill').style.width = `${n / CONFIG.items.length * 100}%`;
+  if (n === CONFIG.items.length) {
+    setTimeout(() => {
+      allDone = true;
+      W0.state = 'bouncing';
+      queue.length = 0;
+      document.getElementById('done-msg').style.display = 'block';
+      playDone();
+    }, 1900);
+  }
+}
+
+// ---- Draw background ----
+function drawBg() {
+  const sky = ctx.createLinearGradient(0, 0, 0, groundY);
+  sky.addColorStop(0, '#5bb8f5');
+  sky.addColorStop(0.75, '#b3e0c0');
+  sky.addColorStop(1, '#c5ea9a');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, groundY);
+
+  // clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.72)';
+  [[W*0.18, H*0.09, 55], [W*0.48, H*0.06, 45], [W*0.73, H*0.11, 65]].forEach(([cx,cy,r]) => {
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI*2);
+    ctx.arc(cx+r*.65, cy-r*.25, r*.7, 0, Math.PI*2);
+    ctx.arc(cx-r*.5, cy+r*.1, r*.55, 0, Math.PI*2);
+    ctx.fill();
+  });
+
+  const grd = ctx.createLinearGradient(0, groundY, 0, H);
+  grd.addColorStop(0, '#5c9e2f'); grd.addColorStop(0.12, '#4a8020'); grd.addColorStop(1, '#3a6015');
+  ctx.fillStyle = grd;
+  ctx.fillRect(0, groundY, W, H - groundY);
+
+  // grass tufts
+  ctx.lineWidth = 1.5;
+  grassTufts.forEach(t => {
+    t.h.forEach((h, j) => {
+      ctx.strokeStyle = j === 1 ? '#2d6010' : '#3a7018';
+      ctx.beginPath();
+      ctx.moveTo(t.x + (j-1)*5, groundY);
+      ctx.lineTo(t.x + (j-1)*5 + Math.sin(t.a[j])*h, groundY - h);
+      ctx.stroke();
+    });
+  });
+}
+
+// ---- Draw patch ----
+function drawPatch(p) {
+  if (p.eaten >= 1) return;
+  const a = 1 - p.eaten * 0.85;
+  const sc = 1 - p.eaten * 0.65;
+  ctx.save();
+  ctx.globalAlpha = a;
+  ctx.translate(p.x, p.y);
+  ctx.scale(sc, sc);
+
+  ctx.strokeStyle = '#2a5500'; ctx.lineWidth = 4;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, -p.size); ctx.stroke();
+
+  p.leaves.forEach(lf => {
+    const lx = Math.cos(lf.ang) * lf.dist;
+    const ly = -p.size * 0.6 + Math.sin(lf.ang) * lf.dist * 0.4;
+    ctx.fillStyle = `hsl(${lf.hue}, 58%, ${lf.lig}%)`;
+    ctx.save(); ctx.translate(lx, ly); ctx.rotate(lf.ang);
+    ctx.beginPath(); ctx.ellipse(0, 0, lf.sz, lf.sz*0.44, 0, 0, Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+  ctx.fillStyle = `hsl(${p.hue}, 52%, 31%)`;
+  ctx.beginPath(); ctx.arc(0, -p.size*0.76, p.size*0.44, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = `hsl(${p.hue+8}, 56%, 38%)`;
+  ctx.beginPath();
+  ctx.arc(-p.size*0.2, -p.size*0.88, p.size*0.3, 0, Math.PI*2);
+  ctx.arc( p.size*0.22, -p.size*0.82, p.size*0.34, 0, Math.PI*2);
+  ctx.fill();
+
+  ctx.restore();
+  ctx.globalAlpha = 1;
+}
+
+// ---- Draw wombat ----
+function drawWombat(wx, wy, facing, chompMs, state, walkPhase) {
+  ctx.save();
+  ctx.translate(wx, wy);
+  ctx.scale(facing, 1);
+
+  // shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.17)';
+  ctx.beginPath(); ctx.ellipse(4, 3, 38, 7, 0, 0, Math.PI*2); ctx.fill();
+
+  // leg swing
+  const sw = state === 'walking' ? Math.sin(walkPhase) * 7 : 0;
+
+  // back legs
+  [[-21, 0], [21, 0]].forEach(([lx], k) => {
+    const off = k === 0 ? sw : -sw;
+    ctx.fillStyle = '#6b5010';
+    ctx.beginPath(); ctx.ellipse(lx, off, 8, 11, off*0.05, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#3d2200';
+    [-3,0,3].forEach(cx => { ctx.beginPath(); ctx.ellipse(lx+cx, 9+off, 2, 3, 0, 0, Math.PI*2); ctx.fill(); });
+  });
+
+  // body
+  ctx.fillStyle = '#8b6914';
+  ctx.beginPath(); ctx.ellipse(0, -20, 34, 22, 0, 0, Math.PI*2); ctx.fill();
+  // belly
+  ctx.fillStyle = '#c4a550';
+  ctx.beginPath(); ctx.ellipse(0, -14, 18, 13, 0, 0, Math.PI*2); ctx.fill();
+
+  // front legs
+  [[-17, 0],[17, 0]].forEach(([lx], k) => {
+    const off = k === 0 ? -sw : sw;
+    ctx.fillStyle = '#7a5c10';
+    ctx.beginPath(); ctx.ellipse(lx, off, 7, 9, off*0.05, 0, Math.PI*2); ctx.fill();
+  });
+
+  // head
+  const bob = chompMs > 0 ? Math.sin(chompMs * 0.013) * 5 : 0;
+  const HX = 26, HY = -34 + bob;
+
+  ctx.fillStyle = '#9b7520';
+  ctx.beginPath(); ctx.ellipse(HX, HY, 20, 15, 0.22, 0, Math.PI*2); ctx.fill();
+
+  // ears
+  [[HX-9, HY-15, -0.2],[HX+5, HY-16, 0.15]].forEach(([ex,ey,rot]) => {
+    ctx.save(); ctx.translate(ex,ey); ctx.rotate(rot);
+    ctx.fillStyle = '#7a5c10';
+    ctx.beginPath(); ctx.ellipse(0,0,5,8,0,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#d4846c';
+    ctx.beginPath(); ctx.ellipse(0,0,2.5,5,0,0,Math.PI*2); ctx.fill();
+    ctx.restore();
+  });
+
+  // eye
+  ctx.fillStyle = '#160e00';
+  ctx.beginPath(); ctx.arc(HX+8, HY-7, 4, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  ctx.beginPath(); ctx.arc(HX+9.5, HY-8.5, 1.5, 0, Math.PI*2); ctx.fill();
+
+  // big flat nose
+  ctx.fillStyle = '#2a1500';
+  ctx.beginPath(); ctx.ellipse(HX+16, HY, 9, 6, 0, 0, Math.PI*2); ctx.fill();
+  ctx.fillStyle = '#1a0a00';
+  ctx.beginPath();
+  ctx.arc(HX+12, HY, 2.2, 0, Math.PI*2);
+  ctx.arc(HX+19, HY, 2.2, 0, Math.PI*2);
+  ctx.fill();
+
+  // mouth
+  if (chompMs > 0) {
+    const open = Math.max(0, Math.sin(chompMs * 0.013)) * 10;
+    ctx.fillStyle = '#8b6020';
+    ctx.beginPath(); ctx.ellipse(HX+14, HY+6, 6, 3, 0, 0, Math.PI); ctx.fill();
+    ctx.fillStyle = '#700';
+    ctx.beginPath(); ctx.ellipse(HX+14, HY+6+open*0.55, 6, 2.5+open*0.3, 0, 0, Math.PI); ctx.fill();
+    if (open > 2) {
+      ctx.fillStyle = '#fffbef';
+      for (let t = 0; t < 3; t++) ctx.fillRect(HX+9+t*3.5, HY+6, 2.5, 2+open*0.18);
+    }
+    if (open > 5) {
+      ctx.fillStyle = '#e04040';
+      ctx.beginPath(); ctx.ellipse(HX+14, HY+8+open*0.45, 4, 2.2, 0, 0, Math.PI); ctx.fill();
+    }
+  } else {
+    ctx.strokeStyle = '#5a3000'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(HX+13, HY+4, 3.5, 0.2, Math.PI-0.2); ctx.stroke();
+  }
+
+  ctx.restore();
+}
+
+// ---- Update ----
+const SPEED = 210;       // px/sec walk speed
+const CHOMP_DUR = 1450;  // ms per chomp sequence
+const CHOMP_INT = 360;   // ms between chomp sounds
+
+function update(dt) {
+  // particles
+  for (let i = parts.length-1; i >= 0; i--) {
+    const p = parts[i];
+    p.x += p.vx * dt * 0.06; p.y += p.vy * dt * 0.06;
+    p.vy += 0.006 * dt; p.life -= 0.0018 * dt;
+    if (p.life <= 0) parts.splice(i, 1);
+  }
+
+  if (W0.state === 'idle') {
+    W0.idleMs += dt;
+    W0.y = groundY + Math.sin(W0.idleMs * 0.002) * 1.5;
+    if (queue.length > 0) {
+      W0.targetIdx = queue.shift();
+      W0.state = 'walking';
+    }
+  }
+  else if (W0.state === 'walking') {
+    const tgt = patches[W0.targetIdx];
+    const dx = tgt.x - W0.x;
+    W0.facing = dx > 0 ? 1 : -1;
+    W0.walkPhase += dt * 0.013;
+    const step = SPEED * dt / 1000;
+    if (Math.abs(dx) < 52) {
+      W0.state = 'chomping';
+      W0.chompMs = 0; W0.lastChomp = 0;
+      W0.x = tgt.x - W0.facing * 46;
+      W0.y = groundY;
+    } else {
+      W0.x += Math.sign(dx) * Math.min(step, Math.abs(dx) - 52);
+      W0.y = groundY;
+    }
+  }
+  else if (W0.state === 'chomping') {
+    W0.chompMs += dt;
+    const tgt = patches[W0.targetIdx];
+    tgt.eaten = Math.min(1, W0.chompMs / CHOMP_DUR);
+    if (W0.chompMs - W0.lastChomp > CHOMP_INT) {
+      W0.lastChomp = W0.chompMs;
+      playChomp();
+      burst(tgt.x, tgt.y);
+    }
+    if (W0.chompMs >= CHOMP_DUR) {
+      tgt.eaten = 1;
+      W0.state = 'idle'; W0.chompMs = 0; W0.targetIdx = -1;
+    }
+  }
+  else if (W0.state === 'bouncing') {
+    const spd = dt * 0.001;
+    W0.x += W0.bvx * spd * 200;
+    W0.y += W0.bvy * spd * 200;
+    W0.walkPhase += dt * 0.016;
+    const m = 48;
+    if (W0.x < m)   { W0.bvx =  Math.abs(W0.bvx); W0.x = m;   W0.facing =  1; }
+    if (W0.x > W-m) { W0.bvx = -Math.abs(W0.bvx); W0.x = W-m; W0.facing = -1; }
+    if (W0.y < m)   { W0.bvy =  Math.abs(W0.bvy); W0.y = m; }
+    if (W0.y > H-m) { W0.bvy = -Math.abs(W0.bvy); W0.y = H-m; }
+  }
+}
+
+// ---- Loop ----
+let lastT = 0;
+function loop(t) {
+  const dt = Math.min(t - lastT, 100);
+  lastT = t;
+  update(dt);
+
+  ctx.clearRect(0, 0, W, H);
+  drawBg();
+
+  patches.forEach((p, i) => {
+    drawPatch(p);
+    if (p.eaten < 1) {
+      ctx.globalAlpha = 1 - p.eaten;
+      ctx.font = 'bold 12px system-ui';
+      ctx.textAlign = 'center';
+      const lbl = `${CONFIG.items[i].emoji} ${CONFIG.items[i].name}`;
+      ctx.strokeStyle = 'rgba(0,0,0,0.38)'; ctx.lineWidth = 3;
+      ctx.strokeText(lbl, p.x, p.y - p.size - 18);
+      ctx.fillStyle = 'white';
+      ctx.fillText(lbl, p.x, p.y - p.size - 18);
+      ctx.globalAlpha = 1;
+    }
+  });
+
+  parts.forEach(p => {
+    ctx.globalAlpha = Math.max(0, p.life);
+    ctx.fillStyle = `hsl(${p.hue}, 65%, 40%)`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.sz * p.life, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1;
+
+  drawWombat(W0.x, W0.y, W0.facing, W0.chompMs, W0.state, W0.walkPhase);
+
+  requestAnimationFrame(loop);
+}
+
+// ---- Init ----
+initPatches();
+resize();
+W0.x = W * 0.76;
+W0.y = groundY;
+
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
