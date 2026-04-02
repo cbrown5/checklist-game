@@ -1,0 +1,15 @@
+{
+  "id": "bedtime-routine",
+  "title": "🌙 Bedtime Routine",
+  "description": "Wind down and get ready for sleep",
+  "items": [
+    { "name": "Dinner",           "emoji": "🍽️" },
+    { "name": "Brush Teeth",      "emoji": "🦷" },
+    { "name": "Wash Face",        "emoji": "🧼" },
+    { "name": "Pyjamas",          "emoji": "🛌" },
+    { "name": "Pack School Bag",  "emoji": "🎒" },
+    { "name": "Read a Book",      "emoji": "📖" },
+    { "name": "Lights Off",       "emoji": "💡" },
+    { "name": "Sleep",            "emoji": "😴" }
+  ]
+}

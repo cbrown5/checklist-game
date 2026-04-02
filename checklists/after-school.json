@@ -1,0 +1,14 @@
+{
+  "id": "after-school",
+  "title": "🏫 After School",
+  "description": "Get sorted when you get home",
+  "items": [
+    { "name": "Unpack Bag",       "emoji": "🎒" },
+    { "name": "Snack",            "emoji": "🍎" },
+    { "name": "Drink Water",      "emoji": "🥤" },
+    { "name": "Homework",         "emoji": "📝" },
+    { "name": "Reading",          "emoji": "📖" },
+    { "name": "Tidy Room",        "emoji": "🧹" },
+    { "name": "Free Time",        "emoji": "🎮" }
+  ]
+}

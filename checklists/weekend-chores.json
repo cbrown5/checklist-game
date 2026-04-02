@@ -1,0 +1,16 @@
+{
+  "id": "weekend-chores",
+  "title": "🏠 Weekend Chores",
+  "description": "Keep the house happy",
+  "items": [
+    { "name": "Make Bed",         "emoji": "🛏️" },
+    { "name": "Tidy Room",        "emoji": "🧹" },
+    { "name": "Vacuum",           "emoji": "🧹" },
+    { "name": "Laundry",          "emoji": "👕" },
+    { "name": "Empty Bins",       "emoji": "🗑️" },
+    { "name": "Wipe Benches",     "emoji": "🧽" },
+    { "name": "Feed Pets",        "emoji": "🐾" },
+    { "name": "Water Plants",     "emoji": "🌱" },
+    { "name": "Take out Rubbish", "emoji": "🗑️" }
+  ]
+}

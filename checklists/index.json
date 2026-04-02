@@ -1,0 +1,26 @@
+[
+  {
+    "id": "morning-routine",
+    "title": "☀️ Morning Routine",
+    "description": "Start the day right",
+    "file": "morning-routine.json"
+  },
+  {
+    "id": "bedtime-routine",
+    "title": "🌙 Bedtime Routine",
+    "description": "Wind down and get ready for sleep",
+    "file": "bedtime-routine.json"
+  },
+  {
+    "id": "after-school",
+    "title": "🏫 After School",
+    "description": "Get sorted when you get home",
+    "file": "after-school.json"
+  },
+  {
+    "id": "weekend-chores",
+    "title": "🏠 Weekend Chores",
+    "description": "Keep the house happy",
+    "file": "weekend-chores.json"
+  }
+]
