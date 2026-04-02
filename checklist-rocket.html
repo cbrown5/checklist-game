@@ -19,6 +19,24 @@ body{background:#0a0a1a;font-family:'Segoe UI',system-ui,sans-serif;overflow:hid
 #ndisp{font-size:2.5rem;color:#fff;font-weight:bold;min-width:60px;text-align:center;text-shadow:0 0 20px #6af}
 #startbtn{background:linear-gradient(135deg,#4af,#26d);border:none;border-radius:50px;color:#fff;font-size:1.3rem;font-weight:bold;padding:.9rem 3rem;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 0 30px rgba(100,170,255,.4);transition:all .2s}
 #startbtn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(100,170,255,.6)}
+#item-select{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a2e,#1a1a4e,#0d0d2b);z-index:100;padding:1rem}
+#item-select h1{font-size:clamp(1.5rem,4vw,2.5rem);color:#fff;text-shadow:0 0 30px #6af;margin-bottom:.3em;letter-spacing:2px}
+#item-select .sub{color:#8af;font-size:1rem;margin-bottom:1.5rem;opacity:.8}
+.item-select-card{background:rgba(255,255,255,.05);border:1px solid rgba(100,170,255,.3);border-radius:20px;padding:1.5rem 2rem;backdrop-filter:blur(10px);box-shadow:0 0 40px rgba(100,150,255,.15);max-width:480px;width:100%;max-height:60vh;overflow-y:auto}
+.item-toggle{display:flex;align-items:center;gap:.75rem;padding:.55rem .5rem;border-radius:10px;cursor:pointer;transition:background .15s;user-select:none}
+.item-toggle:hover{background:rgba(255,255,255,.07)}
+.item-toggle input[type=checkbox]{width:20px;height:20px;accent-color:#4af;cursor:pointer;flex-shrink:0}
+.item-toggle-emoji{font-size:1.2rem}
+.item-toggle-name{color:#ddd;font-size:.95rem}
+#item-select-actions{display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;justify-content:center}
+.sel-all-btn{background:rgba(100,170,255,.15);border:1px solid rgba(100,170,255,.4);border-radius:50px;color:#adf;font-size:.9rem;padding:.5rem 1.2rem;cursor:pointer;transition:all .2s}
+.sel-all-btn:hover{background:rgba(100,170,255,.3)}
+#item-next-btn{background:linear-gradient(135deg,#4af,#26d);border:none;border-radius:50px;color:#fff;font-size:1.2rem;font-weight:bold;padding:.8rem 2.5rem;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 0 30px rgba(100,170,255,.4);transition:all .2s}
+#item-next-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(100,170,255,.6)}
+#ad-screen{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#0a0a2e,#1a1a4e,#0d0d2b);z-index:100}
+#ad-screen .ad-box{background:rgba(255,255,255,.04);border:1px solid rgba(100,170,255,.2);border-radius:24px;width:min(480px,90vw);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:1rem;letter-spacing:2px;margin-bottom:2rem}
+#ad-continue-btn{background:linear-gradient(135deg,#4af,#26d);border:none;border-radius:50px;color:#fff;font-size:1.2rem;font-weight:bold;padding:.8rem 2.5rem;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 0 30px rgba(100,170,255,.4);transition:all .2s}
+#ad-continue-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(100,170,255,.6)}
 .sbg{position:absolute;inset:0;overflow:hidden;pointer-events:none}
 .st{position:absolute;background:#fff;border-radius:50%;animation:tw var(--d) ease-in-out infinite alternate}
 @keyframes tw{from{opacity:.1}to{opacity:1}}
@@ -89,8 +107,27 @@ const CONFIG = {
       <div id="ndisp">2</div>
       <button class="cbtn" id="inc">+</button>
     </div>
-    <button id="startbtn">🚀 LAUNCH GAME</button>
+    <button id="startbtn">NEXT →</button>
   </div>
+</div>
+
+<!-- ── Screen 2: Item Selection ──────────────────────────────── -->
+<div id="item-select">
+  <div class="sbg" id="sbg2"></div>
+  <h1>📋 Choose Items</h1>
+  <p class="sub">Select which tasks to include</p>
+  <div class="item-select-card" id="item-select-list"></div>
+  <div id="item-select-actions">
+    <button class="sel-all-btn" id="sel-all-btn">Select All</button>
+    <button class="sel-all-btn" id="desel-all-btn">Deselect All</button>
+    <button id="item-next-btn">NEXT →</button>
+  </div>
+</div>
+
+<!-- ── Screen 3: Ad Screen ───────────────────────────────────── -->
+<div id="ad-screen">
+  <div class="ad-box">AD SPACE</div>
+  <button id="ad-continue-btn">🚀 LAUNCH GAME</button>
 </div>
 
 <div id="game">

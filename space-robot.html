@@ -7,13 +7,46 @@
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#000010;overflow:hidden;height:100vh;width:100vw}
+body{background:#000010;overflow:hidden;height:100vh;width:100vw;font-family:'Segoe UI',system-ui,sans-serif}
 #game{width:100vw;height:100vh}
 #game canvas{display:block;width:100%!important;height:100%!important}
+.robot-overlay{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#000010,#080828,#000010);z-index:100;padding:1rem}
+.robot-overlay h1{font-size:clamp(1.5rem,4vw,2.5rem);color:#fff;text-shadow:0 0 30px #4af;margin-bottom:.3em;letter-spacing:2px}
+.robot-overlay .sub{color:#8af;font-size:1rem;margin-bottom:1.5rem;opacity:.8}
+.robot-card{background:rgba(255,255,255,.05);border:1px solid rgba(100,170,255,.3);border-radius:20px;padding:1.5rem 2rem;backdrop-filter:blur(10px);box-shadow:0 0 40px rgba(100,150,255,.15);max-width:480px;width:100%;max-height:60vh;overflow-y:auto}
+.robot-item-toggle{display:flex;align-items:center;gap:.75rem;padding:.55rem .5rem;border-radius:10px;cursor:pointer;transition:background .15s;user-select:none}
+.robot-item-toggle:hover{background:rgba(255,255,255,.07)}
+.robot-item-toggle input[type=checkbox]{width:20px;height:20px;accent-color:#4af;cursor:pointer;flex-shrink:0}
+.robot-toggle-emoji{font-size:1.2rem}
+.robot-toggle-name{color:#ddd;font-size:.95rem}
+.robot-actions{display:flex;gap:1rem;margin-top:1.5rem;flex-wrap:wrap;justify-content:center}
+.robot-sel-btn{background:rgba(100,170,255,.15);border:1px solid rgba(100,170,255,.4);border-radius:50px;color:#adf;font-size:.9rem;padding:.5rem 1.2rem;cursor:pointer;transition:all .2s}
+.robot-sel-btn:hover{background:rgba(100,170,255,.3)}
+.robot-next-btn{background:linear-gradient(135deg,#4af,#26d);border:none;border-radius:50px;color:#fff;font-size:1.2rem;font-weight:bold;padding:.8rem 2.5rem;cursor:pointer;letter-spacing:2px;text-transform:uppercase;box-shadow:0 0 30px rgba(100,170,255,.4);transition:all .2s}
+.robot-next-btn:hover{transform:translateY(-2px) scale(1.03);box-shadow:0 0 50px rgba(100,170,255,.6)}
+#robot-ad-screen .ad-box{background:rgba(255,255,255,.04);border:1px solid rgba(100,170,255,.2);border-radius:24px;width:min(480px,90vw);aspect-ratio:4/3;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.2);font-size:1rem;letter-spacing:2px;margin-bottom:2rem}
 </style>
 </head>
 <body>
 <div id="game"></div>
+
+<!-- ── Screen 2: Item Selection ──────────────────────────────── -->
+<div id="robot-item-select" class="robot-overlay">
+  <h1>📋 Choose Items</h1>
+  <p class="sub">Select which tasks to include</p>
+  <div class="robot-card" id="robot-item-select-list"></div>
+  <div class="robot-actions">
+    <button class="robot-sel-btn" id="robot-sel-all">Select All</button>
+    <button class="robot-sel-btn" id="robot-desel-all">Deselect All</button>
+    <button class="robot-next-btn" id="robot-item-next">NEXT →</button>
+  </div>
+</div>
+
+<!-- ── Screen 3: Ad Screen ───────────────────────────────────── -->
+<div id="robot-ad-screen" class="robot-overlay">
+  <div class="ad-box">AD SPACE</div>
+  <button class="robot-next-btn" id="robot-ad-continue">🤖 START GAME</button>
+</div>
 <script>
 // ═══════════════════════════════════════════════════════════════
 //  CONFIGURATION — edit items and title here
@@ -198,6 +231,8 @@ const BASE_HEIGHT       = 160;
 const PART_FLOAT_SCALE  = 0.45;
 
 let GS = null;
+let robotNumP = 2;
+let phaserGame = null;
 
 // ═══════════════════════════════════════════════════════════════
 //  SETUP SCENE
@@ -290,16 +325,8 @@ class SetupScene extends Phaser.Scene {
 
   startGame() {
     SFX.tick();
-    GS = {
-      N: this.numP,
-      items: CONFIG.items,
-      players: Array.from({ length: this.numP }, (_, i) => ({
-        id: i, color: COLS[i % COLS.length],
-        checked: new Array(CONFIG.items.length).fill(false),
-        built: 0, done: false, launched: false,
-      })),
-    };
-    this.scene.start('GameScene');
+    robotNumP = this.numP;
+    showRobotItemSelect();
   }
 }
 
@@ -1094,9 +1121,52 @@ class GameScene extends Phaser.Scene {
 }
 
 // ═══════════════════════════════════════════════════════════════
+//  ITEM SELECT + AD SCREEN (HTML overlays)
+// ═══════════════════════════════════════════════════════════════
+function showRobotItemSelect() {
+  const screen = document.getElementById('robot-item-select');
+  screen.style.display = 'flex';
+  const list = document.getElementById('robot-item-select-list');
+  list.innerHTML = '';
+  CONFIG.items.forEach((item, i) => {
+    const label = document.createElement('label');
+    label.className = 'robot-item-toggle';
+    label.innerHTML = `<input type="checkbox" checked data-idx="${i}"><span class="robot-toggle-emoji">${item.emoji}</span><span class="robot-toggle-name">${item.name}</span>`;
+    list.appendChild(label);
+  });
+  document.getElementById('robot-sel-all').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+  document.getElementById('robot-desel-all').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('robot-item-next').onclick = () => {
+    SFX.tick();
+    screen.style.display = 'none';
+    document.getElementById('robot-ad-screen').style.display = 'flex';
+  };
+}
+
+document.getElementById('robot-ad-continue').onclick = () => {
+  SFX.tick();
+  document.getElementById('robot-ad-screen').style.display = 'none';
+  const checkboxes = document.querySelectorAll('#robot-item-select-list input[type=checkbox]');
+  const selectedItems = CONFIG.items.filter((_, i) => checkboxes[i] && checkboxes[i].checked);
+  const activeItems = selectedItems.length > 0 ? selectedItems : CONFIG.items;
+  GS = {
+    N: robotNumP,
+    items: activeItems,
+    players: Array.from({ length: robotNumP }, (_, i) => ({
+      id: i, color: COLS[i % COLS.length],
+      checked: new Array(activeItems.length).fill(false),
+      built: 0, done: false, launched: false,
+    })),
+  };
+  phaserGame.scene.getScene('SetupScene').scene.start('GameScene');
+};
+
+// ═══════════════════════════════════════════════════════════════
 //  LAUNCH PHASER
 // ═══════════════════════════════════════════════════════════════
-new Phaser.Game({
+phaserGame = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
   backgroundColor: '#000010',

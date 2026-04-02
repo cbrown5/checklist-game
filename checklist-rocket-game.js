@@ -200,7 +200,49 @@ let numP = 2;
 const nd = document.getElementById('ndisp');
 document.getElementById('dec').onclick = () => { if(numP>1) nd.textContent=--numP; };
 document.getElementById('inc').onclick = () => { if(numP<6) nd.textContent=++numP; };
-document.getElementById('startbtn').onclick = startGame;
+document.getElementById('startbtn').onclick = showItemSelect;
+
+// ── Item selection screen ────────────────────────────────────────
+function showItemSelect() {
+  SFX.tick();
+  document.getElementById('setup').style.display = 'none';
+  const screen = document.getElementById('item-select');
+  screen.style.display = 'flex';
+
+  // Build star background for item select screen
+  const sbg2 = document.getElementById('sbg2');
+  if (!sbg2.children.length) {
+    for (let i = 0; i < 60; i++) {
+      const s = document.createElement('div');
+      s.className = 'st';
+      s.style.cssText = `left:${Math.random()*100}%;top:${Math.random()*100}%;width:${1+Math.random()*2}px;height:${1+Math.random()*2}px;--d:${2+Math.random()*4}s;animation-delay:${-Math.random()*4}s`;
+      sbg2.appendChild(s);
+    }
+  }
+
+  // Build item list
+  const list = document.getElementById('item-select-list');
+  list.innerHTML = '';
+  CONFIG.items.forEach((item, i) => {
+    const label = document.createElement('label');
+    label.className = 'item-toggle';
+    label.innerHTML = `<input type="checkbox" checked data-idx="${i}"><span class="item-toggle-emoji">${item.emoji}</span><span class="item-toggle-name">${item.name}</span>`;
+    list.appendChild(label);
+  });
+
+  document.getElementById('sel-all-btn').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+  document.getElementById('desel-all-btn').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('item-next-btn').onclick = showAdScreen;
+}
+
+function showAdScreen() {
+  SFX.tick();
+  document.getElementById('item-select').style.display = 'none';
+  document.getElementById('ad-screen').style.display = 'flex';
+  document.getElementById('ad-continue-btn').onclick = startGame;
+}
 
 // ═══════════════════════════════════════════════════════════════
 //  GAME STATE
@@ -209,15 +251,21 @@ let GS=null, PG=null, PS=null;
 
 function startGame(){
   SFX.tick();
-  document.getElementById('setup').style.display='none';
+  document.getElementById('ad-screen').style.display='none';
   document.getElementById('game').classList.add('on');
   document.getElementById('gtitle').textContent=CONFIG.title;
+
+  // Collect selected items
+  const checkboxes = document.querySelectorAll('#item-select-list input[type=checkbox]');
+  const selectedItems = CONFIG.items.filter((_, i) => checkboxes[i] && checkboxes[i].checked);
+  const activeItems = selectedItems.length > 0 ? selectedItems : CONFIG.items;
+
   GS={
     N:numP,
-    items:CONFIG.items,
+    items:activeItems,
     players:Array.from({length:numP},(_,i)=>({
       id:i, color:COLS[i%COLS.length],
-      checked:new Array(CONFIG.items.length).fill(false),
+      checked:new Array(activeItems.length).fill(false),
       built:0, done:false,
     })),
   };

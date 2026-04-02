@@ -8,6 +8,27 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body { font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; width: 100vw; height: 100vh; }
     canvas { position: fixed; inset: 0; width: 100%; height: 100%; }
+    /* ── Setup screens ── */
+    .wombat-setup {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      background: linear-gradient(160deg, #e8f5d0 0%, #d0eef0 100%);
+      z-index: 300; padding: 1.5rem; font-family: 'Segoe UI', system-ui, sans-serif;
+    }
+    .wombat-setup h2 { font-size: clamp(1.6rem, 5vw, 2.4rem); font-weight: 900; color: #3d6b00; margin-bottom: .4em; }
+    .wombat-setup .ws-sub { color: #5a8a00; font-size: 1rem; margin-bottom: 1.8rem; }
+    .wombat-card { background: rgba(255,248,215,0.95); border-radius: 22px; box-shadow: 0 8px 40px rgba(0,0,0,0.12); padding: 1.8rem 2.2rem; max-width: 460px; width: 100%; }
+    .wombat-item-list { max-height: 55vh; overflow-y: auto; }
+    .wombat-item-toggle { display: flex; align-items: center; gap: .75rem; padding: .5rem .4rem; border-radius: 10px; cursor: pointer; transition: background .15s; user-select: none; }
+    .wombat-item-toggle:hover { background: rgba(150,100,30,0.1); }
+    .wombat-item-toggle input[type=checkbox] { width: 20px; height: 20px; accent-color: #4a9020; cursor: pointer; flex-shrink: 0; }
+    .ws-sel-row { display: flex; gap: .75rem; justify-content: center; margin-bottom: 1rem; }
+    .ws-sel-btn { background: rgba(100,160,30,.15); border: 1px solid rgba(100,160,30,.4); border-radius: 50px; color: #3d6b00; font-size: .85rem; padding: .4rem 1rem; cursor: pointer; transition: all .2s; }
+    .ws-sel-btn:hover { background: rgba(100,160,30,.3); }
+    .ws-next-btn { display: block; margin: 1.2rem auto 0; background: linear-gradient(135deg, #4a9020, #7cd440); border: none; border-radius: 50px; color: white; font-size: 1.1rem; font-weight: 800; padding: .8rem 2.5rem; cursor: pointer; box-shadow: 0 6px 20px rgba(74,144,32,.35); transition: all .2s; }
+    .ws-next-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(74,144,32,.45); }
+    .ws-ad-box { background: rgba(255,248,215,.7); border: 2px dashed rgba(150,100,30,.3); border-radius: 20px; width: min(420px,90vw); aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center; color: rgba(100,70,20,.35); font-size: 1rem; letter-spacing: 2px; margin-bottom: 2rem; }
+    #wombat-main { display: none; }
     #panel {
       position: fixed; left: 20px; top: 50%; transform: translateY(-50%);
       background: rgba(255, 248, 215, 0.94);
@@ -42,6 +63,28 @@
   </style>
 </head>
 <body>
+<!-- ── Screen 1: Item Selection ──────────────────────────────── -->
+<div id="wombat-item-select" class="wombat-setup">
+  <h2>🐾 Wombat Chomper</h2>
+  <p class="ws-sub">Choose which tasks to include</p>
+  <div class="wombat-card">
+    <div class="ws-sel-row">
+      <button class="ws-sel-btn" id="wombat-sel-all">Select All</button>
+      <button class="ws-sel-btn" id="wombat-desel-all">Deselect All</button>
+    </div>
+    <div class="wombat-item-list" id="wombat-item-list"></div>
+    <button class="ws-next-btn" id="wombat-items-next">NEXT →</button>
+  </div>
+</div>
+
+<!-- ── Screen 2: Ad Screen ───────────────────────────────────── -->
+<div id="wombat-ad-screen" class="wombat-setup" style="display:none">
+  <div class="ws-ad-box">AD SPACE</div>
+  <button class="ws-next-btn" id="wombat-ad-next">🐾 START GAME</button>
+</div>
+
+<!-- ── Main game ─────────────────────────────────────────────── -->
+<div id="wombat-main">
 <canvas id="canvas"></canvas>
 <div id="panel">
   <h1 id="title"></h1>
@@ -49,6 +92,7 @@
   <div id="prog-wrap"><div id="prog-fill"></div></div>
   <div id="done-msg">🎉 Wombat is free! 🎉</div>
 </div>
+</div><!-- end #wombat-main -->
 <script>
 // ============================================================
 //  CONFIG — edit items and title here
@@ -191,15 +235,18 @@ function burst(x, y) {
 }
 
 // ---- UI ----
-document.getElementById('title').textContent = CONFIG.title;
-const list = document.getElementById('items-list');
-CONFIG.items.forEach((item, i) => {
-  const div = document.createElement('div');
-  div.className = 'item'; div.id = `item-${i}`;
-  div.innerHTML = `<div class="circle" id="c-${i}"></div><span class="item-emoji">${item.emoji}</span><span class="item-name">${item.name}</span>`;
-  div.addEventListener('click', () => { ensureAudio(); tick(i); });
-  list.appendChild(div);
-});
+function buildWombatUI() {
+  document.getElementById('title').textContent = CONFIG.title;
+  const list = document.getElementById('items-list');
+  list.innerHTML = '';
+  CONFIG.items.forEach((item, i) => {
+    const div = document.createElement('div');
+    div.className = 'item'; div.id = `item-${i}`;
+    div.innerHTML = `<div class="circle" id="c-${i}"></div><span class="item-emoji">${item.emoji}</span><span class="item-name">${item.name}</span>`;
+    div.addEventListener('click', () => { ensureAudio(); tick(i); });
+    list.appendChild(div);
+  });
+}
 
 function tick(i) {
   const el = document.getElementById(`item-${i}`);
@@ -485,12 +532,41 @@ function loop(t) {
 }
 
 // ---- Init ----
-initPatches();
-resize();
-W0.x = W * 0.76;
-W0.y = groundY;
+function startWombat() {
+  document.getElementById('wombat-main').style.display = 'block';
+  buildWombatUI();
+  initPatches();
+  resize();
+  W0.x = W * 0.76;
+  W0.y = groundY;
+  requestAnimationFrame(loop);
+}
 
-requestAnimationFrame(loop);
+// ---- Setup flow ----
+(function() {
+  const list = document.getElementById('wombat-item-list');
+  CONFIG.items.forEach((item, i) => {
+    const lbl = document.createElement('label');
+    lbl.className = 'wombat-item-toggle';
+    lbl.innerHTML = `<input type="checkbox" checked data-idx="${i}"><span style="font-size:1.1rem">${item.emoji}</span><span style="font-size:.9rem;font-weight:600;color:#3d2000">${item.name}</span>`;
+    list.appendChild(lbl);
+  });
+  document.getElementById('wombat-sel-all').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = true);
+  document.getElementById('wombat-desel-all').onclick = () =>
+    list.querySelectorAll('input[type=checkbox]').forEach(cb => cb.checked = false);
+  document.getElementById('wombat-items-next').onclick = () => {
+    document.getElementById('wombat-item-select').style.display = 'none';
+    document.getElementById('wombat-ad-screen').style.display = 'flex';
+  };
+  document.getElementById('wombat-ad-next').onclick = () => {
+    document.getElementById('wombat-ad-screen').style.display = 'none';
+    const checkboxes = list.querySelectorAll('input[type=checkbox]');
+    const selected = CONFIG.items.filter((_, i) => checkboxes[i] && checkboxes[i].checked);
+    CONFIG.items = selected.length > 0 ? selected : CONFIG.items;
+    startWombat();
+  };
+})();
 </script>
 </body>
 </html>
